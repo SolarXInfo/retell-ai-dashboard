@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar X — Retell AI 30-Day Call Analysis</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #0f1117;
+  --card: #1a1d27;
+  --border: #2a2d3a;
+  --text: #e4e4e7;
+  --muted: #9ca3af;
+  --accent: #3b82f6;
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #eab308;
+  --orange: #f97316;
+  --purple: #a855f7;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; }
+.header { text-align: center; margin-bottom: 32px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+.header .sub { color: var(--muted); font-size: 14px; }
+.header .period { color: var(--accent); font-size: 13px; margin-top: 4px; }
+
+/* Tab Navigation */
+.tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; overflow-x: auto; }
+.tab { padding: 10px 20px; cursor: pointer; color: var(--muted); font-size: 14px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Grid layouts */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.kpi { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.kpi .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.kpi .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+.kpi .delta { font-size: 12px; margin-top: 4px; }
+.kpi .delta.up { color: var(--green); }
+.kpi .delta.down { color: var(--red); }
+.kpi .delta.warn { color: var(--yellow); }
+
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+.chart-card h3 { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
+.chart-card.full { grid-column: 1 / -1; }
+
+/* Finding cards */
+.finding { background: var(--card); border-left: 4px solid var(--red); border-radius: 0 12px 12px 0; padding: 20px; margin-bottom: 12px; }
+.finding.high { border-left-color: var(--orange); }
+.finding.medium { border-left-color: var(--yellow); }
+.finding.low { border-left-color: var(--green); }
+.finding .severity { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.finding .severity.critical { color: var(--red); }
+.finding .severity.high { color: var(--orange); }
+.finding .severity.medium { color: var(--yellow); }
+.finding .title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+.finding .desc { color: var(--muted); font-size: 14px; line-height: 1.6; }
+.finding .impact { margin-top: 10px; padding: 10px; background: rgba(239,68,68,0.1); border-radius: 8px; font-size: 13px; color: #fca5a5; }
+.finding .fix { margin-top: 8px; padding: 10px; background: rgba(34,197,94,0.1); border-radius: 8px; font-size: 13px; color: #86efac; }
+
+/* Action items */
+.action-list { list-style: none; }
+.action-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
+.action-item input[type="checkbox"] { margin-top: 3px; accent-color: var(--accent); width: 18px; height: 18px; }
+.action-item .priority { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+.action-item .priority.p1 { background: rgba(239,68,68,0.2); color: var(--red); }
+.action-item .priority.p2 { background: rgba(249,115,22,0.2); color: var(--orange); }
+.action-item .priority.p3 { background: rgba(234,179,8,0.2); color: var(--yellow); }
+.action-item .text { font-size: 14px; line-height: 1.5; }
+.action-item .owner { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* Transcript samples */
+.transcript { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+.transcript .meta { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+.transcript .meta span { font-size: 12px; color: var(--muted); }
+.transcript .meta .tag { padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+.transcript .meta .tag.good { background: rgba(34,197,94,0.2); color: var(--green); }
+.transcript .meta .tag.bad { background: rgba(239,68,68,0.2); color: var(--red); }
+.transcript .meta .tag.warn { background: rgba(234,179,8,0.2); color: var(--yellow); }
+.transcript .summary { font-size: 14px; line-height: 1.6; color: var(--text); }
+.transcript .issue { margin-top: 10px; font-size: 13px; color: #fca5a5; padding: 8px 12px; background: rgba(239,68,68,0.08); border-radius: 6px; }
+
+/* Recommendation table */
+.rec-table { width: 100%; border-collapse: collapse; }
+.rec-table th { text-align: left; font-size: 12px; color: var(--muted); text-transform: uppercase; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.rec-table td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
+.rec-table tr:hover { background: rgba(59,130,246,0.05); }
+
+@media (max-width: 768px) {
+  .chart-grid { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Solar X — Retell AI Call Analysis</h1>
+  <div class="sub">30-Day Deep Dive · All Agents · All Phone Lines</div>
+  <div class="period">Feb 17, 2026 — Mar 16, 2026 · 198 Sessions Analyzed</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('overview')">Overview</div>
+  <div class="tab" onclick="switchTab('findings')">Findings (10)</div>
+  <div class="tab" onclick="switchTab('transcripts')">Call Samples</div>
+  <div class="tab" onclick="switchTab('recommendations')">Recommendations</div>
+  <div class="tab" onclick="switchTab('actions')">Action Items</div>
+  <div class="tab" onclick="switchTab('prompt')">Prompt Updates</div>
+</div>
+
+<!-- OVERVIEW TAB -->
+<div id="overview" class="tab-content active">
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="label">Total Calls</div>
+      <div class="value">198</div>
+      <div class="delta up">↑ 147% vs prior 30 days</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Inbound / Outbound</div>
+      <div class="value" style="font-size:22px">158 / 5</div>
+      <div class="delta down">Outbound = test calls only</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Total Cost</div>
+      <div class="value">$49.78</div>
+      <div class="delta warn">$0.25 avg per call</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Avg Duration</div>
+      <div class="value">1m 37s</div>
+      <div class="delta down">↓ 20% vs prior period</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Median Duration</div>
+      <div class="value">1m 06s</div>
+      <div class="delta warn">Half of calls under 66s</div>
+    </div>
+    <div class="kpi">
+      <div class="label">User Hangup Rate</div>
+      <div class="value" style="color:var(--red)">66.7%</div>
+      <div class="delta down">132 of 198 calls</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Early Drop (&lt;30s)</div>
+      <div class="value" style="color:var(--orange)">39.9%</div>
+      <div class="delta down">79 calls lost in first 30s</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Engagement Rate (2m+)</div>
+      <div class="value" style="color:var(--green)">36.9%</div>
+      <div class="delta warn">73 calls reached 2+ min</div>
+    </div>
+    <div class="kpi">
+      <div class="label">End-to-End Latency</div>
+      <div class="value">1,527ms</div>
+      <div class="delta warn">Target: &lt;1,200ms</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Positive Sentiment</div>
+      <div class="value">36</div>
+      <div class="delta">18% of calls · 3 negative</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Call Duration Distribution</h3>
+      <canvas id="durationChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>End Reason Breakdown</h3>
+      <canvas id="endReasonChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Calls by Day of Week</h3>
+      <canvas id="dayChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>Calls by Hour (Peak Times)</h3>
+      <canvas id="hourChart"></canvas>
+    </div>
+    <div class="chart-card full">
+      <h3>Weekly Call Volume</h3>
+      <canvas id="weeklyChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- FINDINGS TAB -->
+<div id="findings" class="tab-content">
+  <h2 style="margin-bottom: 20px; font-size: 20px;">Key Findings — Last 30 Days</h2>
+
+  <div class="finding">
+    <div class="severity critical">CRITICAL — Revenue Leak</div>
+    <div class="title">1. Main 1-833 Number Routes to GEN AI (Catch-All), Not SALES AI</div>
+    <div class="desc">All inbound calls on your primary sales number (+1-833-376-5279) are hitting the 2026 GEN AI agent — a generic catch-all with no sales qualification flow, no calendar booking capability, and no structured lead capture. This means every potential customer calling your main number gets a generic "How can I help you today?" instead of a sales-trained qualifier.</div>
+    <div class="impact">💰 Impact: Estimated 60-80% of inbound sales leads receive no booking attempt. At ~7 calls/day, that's potentially 4-5 missed booking opportunities per day.</div>
+    <div class="fix">✅ Fix: Route +1-833-376-5279 to 2026 SALES AI. Take 2 minutes. Immediate revenue impact.</div>
+  </div>
+
+  <div class="finding">
+    <div class="severity critical">CRITICAL — Lead Loss</div>
+    <div class="title">2. 39.9% Early Drop Rate — 79 Calls Lost in First 30 Seconds</div>
+    <div class="desc">Nearly 40% of all calls end within 30 seconds. 32 calls end under 10 seconds (before the agent even speaks). 47 more end between 10-30 seconds. The opening "How can I help you today?" is too generic — callers don't know they've reached Solar X and hang up thinking they dialed wrong or hit a generic IVR.</div>
+    <div class="impact">💰 Impact: At $0.25/call average, the ultra-short calls are still costing money ($7.90 for the 32 sub-10s calls). More importantly, any of these could be qualified leads.</div>
+    <div class="fix">✅ Fix: Change opening to "Thanks for calling Solar X, Canada's top-rated solar installer — this is Charlie, how can I help?" Instant brand identification reduces hangups.</div>
+  </div>
+
+  <div class="finding">
+    <div class="severity critical">CRITICAL — Wasted Minutes</div>
+    <div class="title">3. Job Applicant Calls Consuming 3-5 Minutes Each</div>
+    <div class="desc">Multiple calls from job applicants (electricians, door-to-door canvassers) are being fully engaged by GEN AI — collecting names, emails (letter-by-letter over phone), work experience, and promising 1-2 business day callbacks. These should be 20-second redirects to email. On Mar 13 alone, 2 of the top 5 longest calls were job applicants totaling 8 minutes and $1.16.</div>
+    <div class="impact">💰 Impact: ~$15-20/month in wasted AI minutes. Agent credibility risk if follow-ups never happen.</div>
+    <div class="fix">✅ Fix: Add job applicant detection to prompt: "If calling about a job → say 'Email your resume to info@solar-x.ca with the subject Job Application' → end call in 20 seconds."</div>
+  </div>
+
+  <div class="finding high">
+    <div class="severity high">HIGH — Missed Bookings</div>
+    <div class="title">4. GEN AI Collects Info But Never Books — "Someone Will Call You Back"</div>
+    <div class="desc">When real solar leads call (like Mirka Snyder Caron on Mar 12), the GEN AI agent collects their details and says "a consultant will contact you within 1-2 business days." It never attempts to book on Albert's calendar. The SALES AI has calendar tools (Get1/Book1), but GEN AI doesn't — and GEN AI is the agent receiving all the calls.</div>
+    <div class="impact">💰 Impact: Every "we'll call you back" is a potential lost lead. Industry data shows booking rate drops 80%+ when you callback vs booking live.</div>
+    <div class="fix">✅ Fix: Route to SALES AI (has booking tools) OR add the same GHL calendar tools to GEN AI.</div>
+  </div>
+
+  <div class="finding high">
+    <div class="severity high">HIGH — Wasted Minutes</div>
+    <div class="title">5. Email Collection Over Phone Failing Consistently</div>
+    <div class="desc">Agent asks callers to spell emails letter-by-letter. Transcription garbles results. One call showed 2+ minutes of "could you spell that letter by letter?" exchanges for a single email. The AI hears "traders" when the person says their email prefix. This creates friction, extends call duration, and likely results in garbled emails in the CRM.</div>
+    <div class="impact">💰 Impact: Adds 60-90 seconds per call where email is collected. Garbled emails = lost follow-ups.</div>
+    <div class="fix">✅ Fix: Add to prompt: "Do NOT try to spell-confirm emails. Say: 'We'll send the info to the phone number on file — or you can text your email to this number after the call.'"</div>
+  </div>
+
+  <div class="finding high">
+    <div class="severity high">HIGH — System Gap</div>
+    <div class="title">6. Outbound System Non-Operational — Only 5 Calls (All Test)</div>
+    <div class="desc">The outbound system (2026 OB AI) made only 5 calls in 30 days, all to Bilal's phone number (+16478294940). No real prospects have been called. The OB AI has no dedicated phone number for outbound — it must share the Sales AI line, which means it can't make calls without manual setup.</div>
+    <div class="impact">💰 Impact: Zero outbound lead generation. The entire cold calling and warm callback pipeline is inactive.</div>
+    <div class="fix">✅ Fix: Buy a 5th phone number, assign OB AI as outbound agent. Create the COLD OB AI agent. Start batch calling from lead lists.</div>
+  </div>
+
+  <div class="finding high">
+    <div class="severity high">HIGH — Brand Risk</div>
+    <div class="title">7. B2B Vendor Solicitation Calls Being Fully Engaged</div>
+    <div class="desc">Vendor cold callers (freight companies, marketing agencies, etc.) are being treated as potential customers. GEN AI collects their info, promises follow-up, and wastes 2-3 minutes per call. Example: "Anmol from Eastwood Experts" pitching logistics services got full engagement on Mar 13.</div>
+    <div class="impact">💰 Impact: ~5-10 vendor calls/month × 2-3 min = $3-5/month in wasted AI time, plus false CRM entries.</div>
+    <div class="fix">✅ Fix: Add vendor detection: "If caller is selling a product/service TO Solar X → say 'Please email info@solar-x.ca' → end call."</div>
+  </div>
+
+  <div class="finding medium">
+    <div class="severity medium">MEDIUM — Performance</div>
+    <div class="title">8. End-to-End Latency at 1,527ms — Above Target</div>
+    <div class="desc">The average response latency is 1.5 seconds. For natural conversation, targets should be under 1,200ms. This creates an unnatural pause between user speech and agent response, which contributes to the "is this a robot?" perception and early hangups.</div>
+    <div class="impact">Impact: Contributes to the 40% early drop rate. Callers interpret silence as disconnection.</div>
+    <div class="fix">✅ Fix: Consider switching from GPT 4.1 to a faster LLM for the agents, or optimize prompt length to reduce token processing time.</div>
+  </div>
+
+  <div class="finding medium">
+    <div class="severity medium">MEDIUM — Data Quality</div>
+    <div class="title">9. No Post-Call Data Extraction on GEN AI or SALES AI</div>
+    <div class="desc">The call summaries exist but structured data extraction (caller name, homeowner status, city, bill amount, outcome) is not configured on the primary agents. Only the OB AI test calls show structured data capture. This means no pipeline reporting or conversion tracking is possible.</div>
+    <div class="impact">Impact: Cannot measure booking rate, lead quality, or agent effectiveness without manual transcript review.</div>
+    <div class="fix">✅ Fix: Add Post-Call Data Extraction to SALES AI and GEN AI with fields: caller_name, homeowner, property_type, city, monthly_bill, outcome, intent.</div>
+  </div>
+
+  <div class="finding medium">
+    <div class="severity medium">MEDIUM — Knowledge Gap</div>
+    <div class="title">10. Knowledge Base Stale Since January — Missing 2026 Programs</div>
+    <div class="desc">The FAQ KB was last synced Jan 26. It doesn't include updated HRS rebate info, new municipal programs launching in 2026, current hydro connection fees, or the Powerwall 3 battery details. Agents are likely giving outdated or incomplete answers to rebate/incentive questions.</div>
+    <div class="impact">Impact: Agents may give wrong rebate amounts or reference closed programs. Trust and compliance risk.</div>
+    <div class="fix">✅ Fix: Upload the new Solar X Master KB 2026 (03-KNOWLEDGE-BASE.md) and attach to all 5 agents.</div>
+  </div>
+</div>
+
+<!-- TRANSCRIPTS TAB -->
+<div id="transcripts" class="tab-content">
+  <h2 style="margin-bottom: 20px; font-size: 20px;">Call Samples — Pattern Evidence</h2>
+
+  <div class="transcript">
+    <div class="meta">
+      <span>Mar 13, 14:18 · 4:52</span>
+      <span>Agent: 2026 GEN AI</span>
+      <span>Inbound → +1-833-376-5279</span>
+      <span class="tag bad">JOB APPLICANT</span>
+      <span>Cost: $0.71</span>
+    </div>
+    <div class="summary">Job applicant (Ruben Berhe) called about an electrician job posting. Agent engaged for nearly 5 minutes, collected full name, tried to get email letter-by-letter (2+ min), discussed 309A license and solar installation skills. Promised callback in 1-2 business days.</div>
+    <div class="issue">🔴 Should be 20-second redirect: "Email your resume to info@solar-x.ca." Instead cost $0.71 and 5 minutes of AI time. Email collection took 2+ minutes and likely garbled.</div>
+  </div>
+
+  <div class="transcript">
+    <div class="meta">
+      <span>Mar 13, 11:23 · 2:35</span>
+      <span>Agent: 2026 GEN AI</span>
+      <span>Inbound → +1-833-376-5279</span>
+      <span class="tag bad">VENDOR SOLICITATION</span>
+      <span>Cost: $0.38</span>
+    </div>
+    <div class="summary">Anmol from "Eastwood Experts and Ace Freight Exports" called to pitch logistics and shipping services to Solar X. Agent collected vendor's contact details, noted the inquiry, encountered an error logging info, and promised follow-up.</div>
+    <div class="issue">🔴 Vendor cold call treated as a lead. Should be: "Please email info@solar-x.ca with your proposal." 15 seconds max.</div>
+  </div>
+
+  <div class="transcript">
+    <div class="meta">
+      <span>Mar 13, 11:10 · 3:08</span>
+      <span>Agent: 2026 GEN AI</span>
+      <span>Inbound → +1-833-376-5279</span>
+      <span class="tag bad">JOB APPLICANT</span>
+      <span>Cost: $0.45</span>
+    </div>
+    <div class="summary">Phyllis Collins called about door-to-door weekend job opportunities. Agent collected name, phone, email, discussed her 20 years of experience. Promised someone would contact within 1-2 business days.</div>
+    <div class="issue">🔴 Another job applicant burning 3 minutes. Same pattern — should be instant redirect to email.</div>
+  </div>
+
+  <div class="transcript">
+    <div class="meta">
+      <span>Mar 12, 14:25 · 2:04</span>
+      <span>Agent: 2026 GEN AI</span>
+      <span>Inbound → +1-833-376-5279</span>
+      <span class="tag warn">MISSED BOOKING</span>
+      <span>Cost: $0.30</span>
+    </div>
+    <div class="summary">Mirka Snyder Caron called to inquire about solar panel assessment for her house. Agent confirmed details, asked about sunlight exposure and electricity usage. Told her a consultant would contact within 1-2 business days. Positive sentiment, all info collected.</div>
+    <div class="issue">🟡 Real sales lead — but NO booking attempt. Caller was ready to engage. Should have been booked on Albert's calendar immediately. "We'll call you back" = 80% drop-off vs live booking.</div>
+  </div>
+
+  <div class="transcript">
+    <div class="meta">
+      <span>Mar 13, 09:21 · 2:26</span>
+      <span>Agent: 2026 OB AI</span>
+      <span>Outbound → Bilal's phone</span>
+      <span class="tag good">SUCCESSFUL BOOKING</span>
+      <span>Cost: $0.39</span>
+    </div>
+    <div class="summary">Outbound test call to Bilal. Agent qualified "Bill" on homeownership, roof type, and interest. Successfully booked consultation for Mar 17 at 7PM. Clean flow, good qualification, proper calendar integration.</div>
+    <div class="issue">🟢 OB AI working well in test mode. Same flow needs to go live with real leads. Currently stuck at 5 test calls with no real outbound activity.</div>
+  </div>
+</div>
+
+<!-- RECOMMENDATIONS TAB -->
+<div id="recommendations" class="tab-content">
+  <h2 style="margin-bottom: 20px; font-size: 20px;">Prioritized Recommendations</h2>
+  <table class="rec-table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Recommendation</th>
+        <th>Impact</th>
+        <th>Effort</th>
+        <th>Priority</th>
+        <th>Owner</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><strong>Route 1-833 to SALES AI</strong> — Move primary number from GEN AI to SALES AI so all inbound calls get qualification + booking flow</td>
+        <td style="color:var(--green)">Very High</td>
+        <td style="color:var(--green)">2 min</td>
+        <td><span style="background:rgba(239,68,68,0.2);color:var(--red);padding:2px 8px;border-radius:4px;font-weight:700">P1</span></td>
+        <td>Bilal</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><strong>Upload Master KB 2026</strong> — Replace stale FAQ KB with comprehensive knowledge base, attach to all 5 agents</td>
+        <td style="color:var(--green)">High</td>
+        <td style="color:var(--green)">5 min</td>
+        <td><span style="background:rgba(239,68,68,0.2);color:var(--red);padding:2px 8px;border-radius:4px;font-weight:700">P1</span></td>
+        <td>Bilal</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><strong>Add compliance guardrails</strong> — Inject "NEVER $0 down, NEVER Greener Homes Grant" block at top of SALES AI and OB AI prompts</td>
+        <td style="color:var(--green)">High</td>
+        <td style="color:var(--green)">5 min</td>
+        <td><span style="background:rgba(239,68,68,0.2);color:var(--red);padding:2px 8px;border-radius:4px;font-weight:700">P1</span></td>
+        <td>Bilal</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><strong>Fix agent opening line</strong> — Change from "How can I help you?" to "Thanks for calling Solar X — this is Charlie, how can I help?" on ALL agents</td>
+        <td style="color:var(--green)">High</td>
+        <td style="color:var(--green)">5 min</td>
+        <td><span style="background:rgba(239,68,68,0.2);color:var(--red);padding:2px 8px;border-radius:4px;font-weight:700">P1</span></td>
+        <td>Bilal</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td><strong>Add non-lead fast-exit paths</strong> — Job applicants → email redirect (20s). Vendors → email redirect (15s). Wrong numbers → polite end (10s).</td>
+        <td style="color:var(--green)">High</td>
+        <td style="color:var(--yellow)">15 min</td>
+        <td><span style="background:rgba(249,115,22,0.2);color:var(--orange);padding:2px 8px;border-radius:4px;font-weight:700">P2</span></td>
+        <td>Bilal</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td><strong>Kill email-over-phone collection</strong> — Replace with "We'll text/call from this number" or "text your email to us." Stop letter-by-letter spelling.</td>
+        <td style="color:var(--yellow)">Medium</td>
+        <td style="color:var(--green)">5 min</td>
+        <td><span style="background:rgba(249,115,22,0.2);color:var(--orange);padding:2px 8px;border-radius:4px;font-weight:700">P2</span></td>
+        <td>Bilal</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td><strong>Assign outbound number to OB AI</strong> — Currently no phone number can dial out. Assign +1(248)260-5365 as outbound for OB AI.</td>
+        <td style="color:var(--green)">High</td>
+        <td style="color:var(--green)">2 min</td>
+        <td><span style="background:rgba(249,115,22,0.2);color:var(--orange);padding:2px 8px;border-radius:4px;font-weight:700">P2</span></td>
+        <td>Bilal</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td><strong>Add post-call data extraction</strong> — Configure structured fields on SALES AI and GEN AI: name, homeowner, city, bill, outcome, intent</td>
+        <td style="color:var(--yellow)">Medium</td>
+        <td style="color:var(--yellow)">15 min</td>
+        <td><span style="background:rgba(234,179,8,0.2);color:var(--yellow);padding:2px 8px;border-radius:4px;font-weight:700">P3</span></td>
+        <td>Bilal</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td><strong>Create COLD OB AI agent</strong> — Build cold calling agent with Bill-Coverage Surprise script from 02-OUTBOUND-AGENT-PROMPT.md</td>
+        <td style="color:var(--green)">High</td>
+        <td style="color:var(--yellow)">20 min</td>
+        <td><span style="background:rgba(234,179,8,0.2);color:var(--yellow);padding:2px 8px;border-radius:4px;font-weight:700">P3</span></td>
+        <td>Bilal</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td><strong>Buy 5th phone number for cold outbound</strong> — Separate cold calling from inbound lines to prevent spam flagging</td>
+        <td style="color:var(--yellow)">Medium</td>
+        <td style="color:var(--green)">5 min</td>
+        <td><span style="background:rgba(234,179,8,0.2);color:var(--yellow);padding:2px 8px;border-radius:4px;font-weight:700">P3</span></td>
+        <td>Bilal</td>
+      </tr>
+      <tr>
+        <td>11</td>
+        <td><strong>Archive 12 legacy agents</strong> — Clean up old agents from 2025/early 2026 that are superseded by the 2026 series</td>
+        <td style="color:var(--muted)">Low</td>
+        <td style="color:var(--green)">5 min</td>
+        <td><span style="background:rgba(107,114,128,0.2);color:var(--muted);padding:2px 8px;border-radius:4px;font-weight:700">P4</span></td>
+        <td>Bilal</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ACTION ITEMS TAB -->
+<div id="actions" class="tab-content">
+  <h2 style="margin-bottom: 8px; font-size: 20px;">Action Items — Execute This Week</h2>
+  <p style="color:var(--muted); font-size:14px; margin-bottom:20px;">Check off as you complete them. Priority order = money saved or earned fastest.</p>
+
+  <ul class="action-list">
+    <li class="action-item">
+      <input type="checkbox">
+      <div>
+        <span class="priority p1">P1 — TODAY</span>
+        <div class="text">Go to Phone Numbers → +1(757)527-8122 (General AI) → Change inbound agent from 2026 GEN AI to 2026 SALES AI. This routes the main 1-833 number through sales qualification.</div>
+        <div class="owner">Owner: Bilal · Est: 2 min</div>
+      </div>
+    </li>
+    <li class="action-item">
+      <input type="checkbox">
+      <div>
+        <span class="priority p1">P1 — TODAY</span>
+        <div class="text">Upload 03-KNOWLEDGE-BASE.md as "Solar X Master KB 2026" → Attach to all 5 active agents (SALES, TECH, PM, GEN, OB)</div>
+        <div class="owner">Owner: Bilal · Est: 5 min</div>
+      </div>
+    </li>
+    <li class="action-item">
+      <input type="checkbox">
+      <div>
+        <span class="priority p1">P1 — TODAY</span>
+        <div class="text">Open 2026 SALES AI prompt → Add compliance guardrails block at the very top (from 04-SETUP-GUIDE.md, Action 2) → Publish</div>
+        <div class="owner">Owner: Bilal · Est: 3 min</div>
+      </div>
+    </li>
+    <li class="action-item">
+      <input type="checkbox">
+      <div>
+        <span class="priority p1">P1 — TODAY</span>
+        <div class="text">Open 2026 GEN AI prompt → Change opening line to: "Thanks for calling Solar X, Canada's top-rated solar installer — this is Charlie, how can I help you today?" → Publish</div>
+        <div class="owner">Owner: Bilal · Est: 2 min</div>
+      </div>
+    </li>
+    <li class="action-item">
+      <input type="checkbox">
+      <div>
+        <span class="priority p2">P2 — THIS WEEK</span>
+        <div class="text">Add fast-exit routing rules to GEN AI and SALES AI prompts: job applicants → 20s redirect to email. Vendor solicitations → 15s redirect. Add: "NEVER try to spell-confirm email addresses over the phone."</div>
+        <div class="owner">Owner: Bilal · Est: 10 min</div>
+      </div>
+    </li>
+    <li class="action-item">
+      <input type="checkbox">
+      <div>
+        <span class="priority p2">P2 — THIS WEEK</span>
+        <div class="text">Go to Phone Numbers → +1(248)260-5365 (Sales AI) → Under Outbound Call Agent, select 2026 OB AI → Save</div>
+        <div class="owner">Owner: Bilal · Est: 2 min</div>
+      </div>
+    </li>
+    <li class="action-item">
+      <input type="checkbox">
+      <div>
+        <span class="priority p3">P3 — NEXT WEEK</span>
+        <div class="text">Create 2026 COLD OB AI agent using prompt from 02-OUTBOUND-AGENT-PROMPT.md. Attach Master KB. Configure post-call data extraction fields.</div>
+        <div class="owner">Owner: Bilal · Est: 20 min</div>
+      </div>
+    </li>
+    <li class="action-item">
+      <input type="checkbox">
+      <div>
+        <span class="priority p3">P3 — NEXT WEEK</span>
+        <div class="text">Buy 5th phone number (Canadian preferred) → Label "Cold Outbound" → Assign 2026 COLD OB AI as outbound agent → Consider Branded Call add-on</div>
+        <div class="owner">Owner: Bilal · Est: 5 min</div>
+      </div>
+    </li>
+    <li class="action-item">
+      <input type="checkbox">
+      <div>
+        <span class="priority p3">P3 — NEXT WEEK</span>
+        <div class="text">Configure Post-Call Data Extraction on SALES AI and GEN AI: caller_name, homeowner (y/n), property_type, city, monthly_bill, outcome, intent, objection_noted</div>
+        <div class="owner">Owner: Bilal · Est: 15 min</div>
+      </div>
+    </li>
+  </ul>
+</div>
+
+<!-- PROMPT UPDATES TAB -->
+<div id="prompt" class="tab-content">
+  <h2 style="margin-bottom: 20px; font-size: 20px;">Prompt Optimization — Ready to Paste</h2>
+  <p style="color:var(--muted); font-size:14px; margin-bottom:20px;">Copy these blocks and add them to the agent prompts in Retell AI. Based on real transcript analysis of 198 calls.</p>
+
+  <div class="chart-card" style="margin-bottom:16px;">
+    <h3>Block 1: Add to TOP of ALL Agents (Compliance + Opening)</h3>
+    <pre style="background:#111318;padding:16px;border-radius:8px;font-size:13px;line-height:1.6;overflow-x:auto;color:#d4d4d8;">
+## IDENTITY
+You are Charlie, the AI receptionist for Solar X — Canada's #1 residential solar installer.
+Your voice is confident, warm, and direct. No filler words. No corporate-speak.
+
+## OPENING LINE (ALWAYS use this exact opening)
+"Thanks for calling Solar X, Canada's top-rated solar installer — this is Charlie, how can I help you today?"
+
+## COMPLIANCE — HARD RULES (NEVER BREAK)
+- NEVER say "$0 down" or "zero down." We do not offer $0 down financing.
+- NEVER say rebates are "free," "guaranteed," or that "everyone qualifies."
+- NEVER say "Greener Homes Grant" — that program is closed. Say "provincial rebates" or "HRS rebates."
+- NEVER give exact pricing. Say: "That depends on your home — the consultation covers all of that."
+- NEVER promise specific install dates or timelines.
+- NEVER make up information. If unsure, say the consultant will cover it.
+- NEVER collect credit card or banking information.
+    </pre>
+  </div>
+
+  <div class="chart-card" style="margin-bottom:16px;">
+    <h3>Block 2: Add to GEN AI and SALES AI (Fast-Exit Routing)</h3>
+    <pre style="background:#111318;padding:16px;border-radius:8px;font-size:13px;line-height:1.6;overflow-x:auto;color:#d4d4d8;">
+## FAST-EXIT ROUTING — Detect and redirect non-leads quickly
+
+### Job Applicants
+If the caller mentions: job, position, hiring, resume, Indeed, apply, work for you, employment
+→ Say: "Thanks for your interest in Solar X! The best way to apply is to email your resume to info@solar-x.ca with the subject line 'Job Application.' We'll review it and get back to you. Have a great day!"
+→ End the call. Do NOT collect their name, email, or experience over the phone.
+→ Total time: Under 20 seconds.
+
+### Vendor / B2B Solicitation
+If the caller is trying to SELL something TO Solar X (marketing, shipping, supplies, software, etc.)
+→ Say: "Thanks for reaching out. The best way to get that to us is by emailing info@solar-x.ca. Have a good day."
+→ End the call. Do NOT collect their info or promise follow-up.
+→ Total time: Under 15 seconds.
+
+### Wrong Number / Hang-Up Detection
+If the caller says nothing for 5+ seconds, or says "wrong number," "sorry," or seems confused:
+→ Say: "No worries — you've reached Solar X. If you ever need solar, give us a call back. Have a great day!"
+→ End the call.
+    </pre>
+  </div>
+
+  <div class="chart-card" style="margin-bottom:16px;">
+    <h3>Block 3: Add to GEN AI and SALES AI (Email Collection Fix)</h3>
+    <pre style="background:#111318;padding:16px;border-radius:8px;font-size:13px;line-height:1.6;overflow-x:auto;color:#d4d4d8;">
+## EMAIL COLLECTION RULE
+- NEVER ask callers to spell out their email address letter by letter over the phone.
+- Instead, say ONE of these:
+  1. "We've got your phone number on file — we'll reach out by phone or text."
+  2. "If you'd like to share your email, you can text it to this number after the call."
+  3. "Our consultant will grab your email when they call you back."
+- If the caller volunteers their email, capture it but do NOT ask them to repeat or spell it.
+- Priority is ALWAYS: book the consultation first, collect details second.
+    </pre>
+  </div>
+
+  <div class="chart-card">
+    <h3>Block 4: Enhanced Booking Push (for SALES AI only)</h3>
+    <pre style="background:#111318;padding:16px;border-radius:8px;font-size:13px;line-height:1.6;overflow-x:auto;color:#d4d4d8;">
+## BOOKING PRIORITY
+Your #1 goal is to book a consultation on the calendar. Every qualified call should end with a booking attempt.
+
+After qualifying (homeowner + detached + city confirmed):
+→ IMMEDIATELY say: "The easiest next step is a quick, free consultation — takes about 20 minutes, no obligation. What works better for you, mornings or afternoons?"
+→ If they agree: Use the booking tool to schedule on Albert's calendar.
+→ If they hesitate: "Most people use it just to get clear numbers for their specific home. No pressure at all."
+→ If they decline: "No problem — can I grab your number so we can text you some info?"
+
+NEVER say "someone will call you back in 1-2 business days" as your primary next step.
+Always attempt a live booking FIRST.
+    </pre>
+  </div>
+</div>
+
+<script>
+// Tab switching
+function switchTab(id) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// Chart defaults
+Chart.defaults.color = '#9ca3af';
+Chart.defaults.borderColor = '#2a2d3a';
+
+// Duration Distribution
+new Chart(document.getElementById('durationChart'), {
+  type: 'bar',
+  data: {
+    labels: ['<10s', '10-30s', '30s-1m', '1-2m', '2-3m', '3-5m', '5-10m'],
+    datasets: [{
+      label: 'Calls',
+      data: [32, 47, 19, 27, 35, 30, 8],
+      backgroundColor: ['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#06b6d4'],
+      borderRadius: 6
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, grid: { color: '#1f2937' } }, x: { grid: { display: false } } }
+  }
+});
+
+// End Reason
+new Chart(document.getElementById('endReasonChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['User Hangup (132)', 'Agent Hangup (64)', 'Inactivity (2)'],
+    datasets: [{
+      data: [132, 64, 2],
+      backgroundColor: ['#ef4444', '#3b82f6', '#6b7280'],
+      borderWidth: 0
+    }]
+  },
+  options: { plugins: { legend: { position: 'bottom' } }, cutout: '60%' }
+});
+
+// Day of Week
+new Chart(document.getElementById('dayChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    datasets: [{
+      label: 'Calls',
+      data: [25, 53, 31, 45, 41, 3],
+      backgroundColor: '#3b82f6',
+      borderRadius: 6
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, grid: { color: '#1f2937' } }, x: { grid: { display: false } } }
+  }
+});
+
+// Hour distribution
+new Chart(document.getElementById('hourChart'), {
+  type: 'bar',
+  data: {
+    labels: ['8am','9am','10am','11am','12pm','1pm','2pm','3pm','4pm','5pm','6pm'],
+    datasets: [{
+      label: 'Calls',
+      data: [8, 31, 20, 21, 15, 26, 25, 16, 12, 8, 4],
+      backgroundColor: '#8b5cf6',
+      borderRadius: 6
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, grid: { color: '#1f2937' } }, x: { grid: { display: false } } }
+  }
+});
+
+// Weekly volume
+new Chart(document.getElementById('weeklyChart'), {
+  type: 'line',
+  data: {
+    labels: ['Feb 17-22', 'Feb 23-28', 'Mar 1-7', 'Mar 8-14'],
+    datasets: [{
+      label: 'Calls',
+      data: [46, 58, 47, 47],
+      borderColor: '#3b82f6',
+      backgroundColor: 'rgba(59,130,246,0.1)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 6,
+      pointBackgroundColor: '#3b82f6'
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, grid: { color: '#1f2937' } }, x: { grid: { display: false } } }
+  }
+});
+</script>
+
+</body>
+</html>
